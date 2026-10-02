@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Przedsiębiorca Simulator v0.2</title>
+    <style>
+        :root {
+            --bg-color: #1e1e24;
+            --card-bg: #2b2d42;
+            --accent: #e63946;
+            --accent-hover: #d62828;
+            --text-main: #f4f4f9;
+            --text-muted: #8d99ae;
+            --success: #2a9d8f;
+            --warning: #e9c46a;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 700px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent);
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+        }
+
+        .stats-board {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background-color: #3d405b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            font-size: 1em;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #81b29a;
+        }
+
+        .danger { color: var(--accent) !important; }
+        .success { color: var(--success) !important; }
+
+        /* Pasek uwagi ZUS */
+        .meter-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #1a1a1a;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 10%;
+            background-color: var(--success);
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .event-box {
+            background-color: #1d3557;
+            padding: 15px;
+            border-left: 5px solid #457b9d;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            min-height: 120px;
+            line-height: 1.5;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .employee-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #3d405b;
+            padding: 10px 15px;
+            border-radius: 6px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px 16px;
+            font-size: 0.95em;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: var(--accent);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        button.secondary {
+            background-color: #457b9d;
+        }
+
+        button.secondary:hover:not(:disabled) {
+            background-color: #1d3557;
+        }
+
+        .choices {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .choices button {
+            flex: 1;
+        }
+
+        .history-log {
+            margin-top: 20px;
+            background-color: #1e1e24;
+            padding: 10px;
+            border-radius: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>Przedsiębiorca Simulator</h1>
+    
+    <div class="stats-board">
+        <div class="stat-item">
+            <span>Stan konta:</span>
+            <span id="money" class="stat-value">50 000,00 zł</span>
+        </div>
+        <div class="stat-item">
+            <span>Miesiąc:</span>
+            <span id="month" class="stat-value">1</span>
+        </div>
+        <div class="stat-item">
+            <span>Pracownicy:</span>
+            <span id="employees" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+            <span>Uwaga ZUS:</span>
+            <span id="zus-text" class="stat-value">Niska</span>
+            <div class="meter-bar">
+                <div id="zus-bar" class="meter-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="event-box" id="event-text">
+        Witaj w symulatorze polskiego przedsiębiorcy!<br><br>
+        Twoim celem jest utrzymanie płynności finansowej oraz sprawne zarządzanie kadrą.<br>
+        • Koszt pracownika (Pensja + ZUS): <strong>5 790,28 zł/mc</strong><br>
+        • Szacowany przychód z pracownika: <strong>8 500,00 zł/mc</strong><br><br>
+        Zatrudnij pierwszych pracowników i rozpocznij działalność!
+    </div>
+
+    <div class="controls">
+        <div class="employee-controls">
+            <span>Zarządzanie zespołem:</span>
+            <div class="btn-group">
+                <button onclick="changeEmployees(-1)" class="secondary" id="btn-fire">-1 Zwalniaj</button>
+                <button onclick="changeEmployees(1)" class="secondary">+1 Zatrudnij</button>
+            </div>
+        </div>
+
+        <div id="action-area">
+            <button onclick="nextMonth()" style="width: 100%;">Przejdź do następnego miesiąca</button>
+        </div>
+    </div>
+
+    <div class="history-log" id="history-log">
+        <em>Dziennik zdarzeń: Rozpoczęto nową grę.</em>
+    </div>
+</div>
+
+<script>
+    let state = {
+        money: 50000,
+        month: 1,
+        employees: 1,
+        zusAttention: 10, // 0 - 100
+        gameOver: false,
+        pendingChoice: false
+    };
+
+    const BRUTTO = 4806;
+    const ZUS_PRACODAWCA = 984.28;
+    const KOSZT_PRACOWNIKA = BRUTTO + ZUS_PRACODAWCA;
+    const PRZYCHOD_NA_PRACOWNIKA = 8500;
+
+    function updateUI() {
+        document.getElementById('money').innerText = state.money.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+        document.getElementById('month').innerText = state.month;
+        document.getElementById('employees').innerText = state.employees;
+
+        // Kolorowanie stanu konta
+        const moneyEl = document.getElementById('money');
+        if (state.money < 10000) {
+            moneyEl.className = "stat-value danger";
+        } else {
+            moneyEl.className = "stat-value success";
+        }
+
+        // Pasek uwagi ZUS
+        const zusBar = document.getElementById('zus-bar');
+        const zusText = document.getElementById('zus-text');
+        zusBar.style.width = Math.min(state.zusAttention, 100) + '%';
+
+        if (state.zusAttention < 35) {
+            zusText.innerText = "Niska";
+            zusBar.style.backgroundColor = "var(--success)";
+        } else if (state.zusAttention < 70) {
+            zusText.innerText = "Umiarkowana";
+            zusBar.style.backgroundColor = "var(--warning)";
+        } else {
+            zusText.innerText = "Wysoka (Ryzyko Kontroli!)";
+            zusBar.style.backgroundColor = "var(--accent)";
+        }
+
+        document.getElementById('btn-fire').disabled = state.employees <= 0 || state.pendingChoice;
+    }
+
+    function logHistory(msg) {
+        const log = document.getElementById('history-log');
+        log.innerHTML = `[Miesiąc ${state.month}] ${msg}<br>` + log.innerHTML;
+    }
+
+    function changeEmployees(delta) {
+        if (state.pendingChoice || state.gameOver) return;
+        if (state.employees + delta < 0) return;
+
+        state.employees += delta;
+        updateUI();
+    }
+
+    function nextMonth() {
+        if (state.gameOver || state.pendingChoice) return;
+
+        state.month++;
+
+        // Wyliczenia
+        let koszty = state.employees * KOSZT_PRACOWNIKA;
+        let przychod = state.employees * PRZYCHOD_NA_PRACOWNIKA;
+        let zysk = przychod - koszty;
+
+        state.money += zysk;
+
+        let html = `<strong>--- MIESIĄC ${state.month} ---</strong><br>`;
+        html += `Przychody z umów: <span class="success">+${przychod.toFixed(2)} zł</span><br>`;
+        html += `Koszty kadrowe (Pensje+ZUS): <span class="danger">-${koszty.toFixed(2)} zł</span><br>`;
+        html += `Bilans: <strong>${zysk >= 0 ? '+' : ''}${zysk.toFixed(2)} zł</strong><br><br>`;
+
+        logHistory(`Bilans: ${zysk.toFixed(2)} zł (Pracowników: ${state.employees})`);
+
+        // Losowe Zdarzenia Decyzyjne
+        let rand = Math.random();
+
+        if (rand < 0.20 && state.employees > 0) {
+            triggerDecisionEvent(
+                "Niezapowiedziana kontrola BHP!",
+                "Inspektor wykrył uchybienia w procedurach bezpieczeństwa.",
+                "Zapłać mandat natychmiast (2 500 zł)",
+                "Odwołaj się (Ryzyko wyższej kary)",
+                () => {
+                    state.money -= 2500;
+                    document.getElementById('event-text').innerHTML = "Zapłacono mandat 2 500 zł. ZUS/PIP zamykają sprawę.";
+                    updateUI();
+                },
+                () => {
+                    if (Math.random() < 0.5) {
+                        document.getElementById('event-text').innerHTML = "Wygrana! Odwołanie przyjęte, anulowano mandat.";
+                    } else {
+                        state.money -= 5000;
+                        state.zusAttention += 20;
+                        document.getElementById('event-text').innerHTML = "Przegrana! Sąd utrzymał karę i doliczył koszty: -5 000 zł. Uwaga ZUS rośnie!";
+                    }
+                    updateUI();
+                }
+            );
+            return;
+        } else if (rand < 0.40) {
+            let bonus = 6000;
+            state.money += bonus;
+            html += `<span class="success">💰 Firma otrzymała mały grant na cyfryzację: +${bonus} zł!</span>`;
+        } else if (rand < 0.60 && state.employees > 0) {
+            state.zusAttention += 10;
+            html += `<span class="danger">⚠️ Jeden z pracowników przeszedł na długie L4. Koszty rosną, a wydajność spada. Uwaga ZUS rośnie.</span>`;
+        } else {
+            html += `Miesiąc upłynął bez niespodziewanych problemów urzędowych.`;
+        }
+
+        // Warunek Przegranej
+        if (state.money <= 0) {
+            endGame();
+            return;
+        }
+
+        document.getElementById('event-text').innerHTML = html;
+        updateUI();
+    }
+
+    function triggerDecisionEvent(title, desc, optionA, optionB, callbackA, callbackB) {
+        state.pendingChoice = true;
+        
+        let html = `<strong>${title}</strong><br>${desc}<br><br>`;
+        html += `<div class="choices">
+            <button id="opt-a">${optionA}</button>
+            <button id="opt-b">${optionB}</button>
+        </div>`;
+
+        document.getElementById('event-text').innerHTML = html;
+        document.getElementById('action-area').style.display = "none";
+
+        document.getElementById('opt-a').onclick = () => {
+            callbackA();
+            resetAfterChoice();
+        };
+
+        document.getElementById('opt-b').onclick = () => {
+            callbackB();
+            resetAfterChoice();
+        };
+        
+        updateUI();
+    }
+
+    function resetAfterChoice() {
+        state.pendingChoice = false;
+        document.getElementById('action-area').style.display = "block";
+        if (state.money <= 0) {
+            endGame();
+        } else {
+            updateUI();
+        }
+    }
+
+    function endGame() {
+        state.gameOver = true;
+        let html = `<strong class="danger">BANKRUT!</strong><br>Twój stan konta spadł poniżej 0 zł. ZUS zajął rachunek bankowy.<br>Przetrwałeś <strong>${state.month}</strong> miesięcy.`;
+        document.getElementById('event-text').innerHTML = html;
+        document.getElementById('action-area').innerHTML = `<button onclick="location.reload()" style="width:100%">Zagraj ponownie</button>`;
+        logHistory("GRA ZAKOŃCZONA - BANKRUCTWO.");
+    }
+
+    // Inicjalizacja
+    updateUI();
+</script>
+
+</body>
+</html>
